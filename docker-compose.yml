@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: gdh_postgres
+    environment:
+      POSTGRES_USER: gdh
+      POSTGRES_PASSWORD: gdh123
+      POSTGRES_DB: gdh_case
+    ports:
+      - "55432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
