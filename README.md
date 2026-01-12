@@ -119,13 +119,9 @@ Bu yapı sayesinde yeni bir davranış eklemek veya mevcut bir davranışı değ
 
 Örnek API Endpoint’leri
 
-    •	GET /api/chats
-
-Tüm sohbetleri listeler.
-• GET /api/chats/:chatId/history
-Belirli bir sohbetin mesaj geçmişini getirir.
-• POST /api/chats/:chatId/completion
-Feature flag durumuna göre JSON veya streaming response üretir.
+•GET /api/chats -> Tüm sohbetleri listeler.
+•GET /api/chats/:chatId/history -> Belirli bir sohbetin mesaj geçmişini getirir.
+•POST /api/chats/:chatId/completion ->Feature flag durumuna göre JSON veya streaming response üretir.
 
 ## Kurulum ve Çalıştırma
 
