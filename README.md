@@ -135,3 +135,11 @@ npm run dev
 
 
 ```
+
+### Seed (Demo Verisi)
+
+Projeyi ilk kez çalıştıranlar için örnek veriler sağlanmıştır.
+
+```bash
+psql -h localhost -p 55432 -U gdh -d gdh_case -f seed/seed.sql
+```
