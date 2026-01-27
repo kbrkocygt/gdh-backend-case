@@ -9,6 +9,7 @@ import { CompletionStrategyResolver } from "./modules/chat/strategies/completion
 
 import { FEATURE_FLAGS } from "./config/feature-flags";
 import { PaginationPolicy } from "./modules/chat/policies/pagination.policy";
+import { ChatHistoryPolicy } from "./modules/chat/policies/chat-history.policy"; // ✅ path sende farklı olabilir
 
 // Repository
 const chatRepository = new PostgresChatRepository();
@@ -17,10 +18,9 @@ const chatRepository = new PostgresChatRepository();
 const jsonStrategy = new JsonCompletionStrategy();
 const streamingStrategy = new StreamingCompletionStrategy();
 
-// AI Tool
-const aiToolStrategy = new MockAiToolStrategy();
-
+// Policies
 const paginationPolicy = new PaginationPolicy(FEATURE_FLAGS);
+const chatHistoryPolicy = new ChatHistoryPolicy(FEATURE_FLAGS);
 
 // Resolver
 const completionStrategyResolver = new CompletionStrategyResolver(
@@ -29,10 +29,16 @@ const completionStrategyResolver = new CompletionStrategyResolver(
   streamingStrategy
 );
 
+// AI Tool Strategy
+const aiToolStrategy = new MockAiToolStrategy(); // veya NullAiToolStrategy
+
 // Service
-export const chatService = new ChatService(
+const chatService = new ChatService(
   chatRepository,
   paginationPolicy,
+  chatHistoryPolicy,
   completionStrategyResolver,
   aiToolStrategy
 );
+
+export { chatService };
