@@ -6,10 +6,15 @@ export class StreamingCompletionStrategy implements CompletionStrategy {
     res: Response<any, Record<string, any>>,
     prompt: string
   ): Promise<void> {
+    // SSE headers
     res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    res.flushHeaders?.();
 
 
-     const words = prompt.split(" ");
+    const words = prompt.split(" ");
 
     for (const word of words) {
       res.write(`data: ${word}\n\n`);
@@ -20,6 +25,7 @@ export class StreamingCompletionStrategy implements CompletionStrategy {
     //   await new Promise(r => setTimeout(r, 100));
     // }
 
+    res.write(`data: [DONE]\n\n`);
     res.end();
   }
 
