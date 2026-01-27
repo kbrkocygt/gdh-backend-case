@@ -1,6 +1,6 @@
 import { db } from "../../config/database";
 import { chats, messages } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { ChatRepository } from "./chat.repository";
 import { Chat, ChatMessage } from "./chat.types";
 
@@ -34,9 +34,13 @@ async getHistory(chatId: number, limit?: number): Promise<ChatMessage[]> {
       content: messages.content,
     })
     .from(messages)
-    .where(eq(messages.chatId, chatId));
+    .where(eq(messages.chatId, chatId))
+    // No timestamp field in schema; id is monotonically increasing
+    .orderBy(desc(messages.id));
 
-  return limit !== undefined ? await query.limit(limit) : await query;
+  const rows = limit !== undefined ? await query.limit(limit) : await query;
+  // For "last 10" we usually want chronological order (old -> new)
+  return rows.reverse();
 }
 
 }
