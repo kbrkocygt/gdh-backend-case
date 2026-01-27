@@ -12,6 +12,10 @@ export const getChats = asyncHandler(
 export const getChatHistory = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const chatId = Number(req.params.chatId);
+    if (Number.isNaN(chatId)) {
+      res.status(400).json({ message: "Invalid chatId" });
+      return;
+    }
     const messages = await chatService.getChatHistory(chatId);
     res.status(200).json(messages);
   }
@@ -20,7 +24,12 @@ export const getChatHistory = asyncHandler(
 export const completeChat = asyncHandler(
   async (req: Request, res: Response): Promise<void> => {
     const chatId = Number(req.params.chatId);
-    await chatService.completeChat(chatId, res);
+    if (Number.isNaN(chatId)) {
+      res.status(400).json({ message: "Invalid chatId" });
+      return;
+    }
+    const prompt = (req.body?.prompt as string) ?? "";
+    await chatService.completeChat(chatId, prompt, res);
   }
 );
 
