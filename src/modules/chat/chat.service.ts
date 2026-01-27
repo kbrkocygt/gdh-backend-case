@@ -3,6 +3,7 @@ import { ChatRepository } from "./chat.repository";
 import { CompletionStrategyResolver } from "./strategies/completion-strategy.resolver";
 import { AiToolStrategy } from "./strategies/ai-tool.strategy";
 import { PaginationPolicy } from "./policies/pagination.policy";
+import { ChatHistoryPolicy } from "./policies/chat-history.policy";
 import { AppError } from "../../common/errors/app-error";
 
 export class ChatService {
@@ -10,6 +11,7 @@ export class ChatService {
     
     private readonly chatRepository: ChatRepository,
     private readonly paginationPolicy: PaginationPolicy,
+    private readonly chatHistoryPolicy: ChatHistoryPolicy,
     private readonly strategyResolver: CompletionStrategyResolver,
     private readonly aiToolStrategy: AiToolStrategy
   ) {}
@@ -25,17 +27,23 @@ async getChatHistory(chatId: number) {
   if (!chat) {
     throw new AppError(`Chat with id ${chatId} not found`, 404);
   }
-  return this.chatRepository.getHistory(chatId);
+  const limit = this.chatHistoryPolicy.resolveLimit();
+  return this.chatRepository.getHistory(chatId, limit);
 }
 
-async completeChat(chatId: number, res: Response): Promise<void>
+async completeChat(chatId: number, prompt: string, res: Response): Promise<void>
  {
     const chat = await this.chatRepository.findById(chatId);
     if (!chat) {
       throw new AppError(`Chat with id ${chatId} not found`, 404);
     }
 
-    const basePrompt = `Merhaba ${chat.title}`;
+    if (!prompt || !prompt.trim()) {
+      throw new AppError("prompt is required", 400);
+    }
+
+    // Completion input comes from the user prompt; we can optionally include chat title as context.
+    const basePrompt = `Chat: ${chat.title}\nUser: ${prompt.trim()}`;
     const enrichedPrompt = this.aiToolStrategy.enrich(basePrompt);
 
     const strategy = this.strategyResolver.resolve();
