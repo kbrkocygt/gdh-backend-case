@@ -1,145 +1,80 @@
-# GDH Backend Case Study
+Feature Flag Yapısı (Runtime Davranış Kontrolü)
 
-Bu proje, GDH Teknoloji teknik değerlendirme süreci kapsamında hazırlanmış bir backend case çalışmasıdır.
+Bu projede feature flag yapısı, uygulamanın yeniden başlatılmasına gerek kalmadan runtime’da davranış değiştirebilmesi amacıyla kullanılmıştır.
 
-Çalışmanın temel amacı; **çalışma zamanında (runtime) davranışı değişebilen**, buna rağmen **okunabilirliğini, yönetilebilirliğini ve genişletilebilirliğini kaybetmeyen** bir backend mimarisi tasarlamak ve uygulamaktır.
+Feature flag’ler merkezi bir yapı üzerinden yönetilmekte ve ilgili servis katmanlarında karar mekanizması olarak kullanılmaktadır.
 
-Proje, bir AI sohbet arayüzünü besleyen basit bir API üzerinden; **feature flag yaklaşımı**, **tasarım desenleri** ve **type-safe ORM kullanımı** ile esnek bir backend mimarisi oluşturmayı hedefler.
+Kullanılan flag’ler:
 
----
+paginationLimit
+Sohbet listesinde dönecek maksimum kayıt sayısını belirler (10–100 arası).
 
-## Kullanılan Teknolojiler
+streamingEnabled
+AI completion endpoint’inin JSON response mı yoksa SSE streaming response mu üreteceğini belirler.
 
-- Node.js
-- TypeScript
-- Express
-- PostgreSQL
-- Drizzle ORM
-- Docker
+chatHistoryEnabled
+Sohbet geçmişinin tamamının mı yoksa yalnızca son 10 mesajın mı döneceğini kontrol eder.
 
----
+aiToolsEnabled
+AI yanıtı oluşturulurken mock AI araçlarının (ör. hava durumu) kullanılıp kullanılmayacağını belirler.
 
-## Mimari Yaklaşım
+Feature flag’ler aşağıdaki endpoint üzerinden runtime’da güncellenebilir:
+curl -X PATCH http://localhost:3000/api/flags \
+ -H "x-app-check: test" \
+ -H "Authorization: Bearer test" \
+ -H "x-client-type: web" \
+ -H "Content-Type: application/json" \
+ -d '{
+"streamingEnabled": false,
+"paginationLimit": 25
+}'
+Bu işlem sonrası uygulama davranışı anında değişmektedir.
 
-Bu projede amaç, yalnızca çalışan bir API yazmak değil; **değişen iş kurallarına minimum maliyetle adapte olabilen** bir yapı kurmaktır.
+AI Completion Davranışı
 
-Bu doğrultuda aşağıdaki prensipler benimsenmiştir:
+AI completion endpoint’i, feature flag durumuna göre iki farklı şekilde çalışmaktadır:
 
-- Katmanlar arası sorumlulukların net ayrılması
-- İş kurallarının framework bağımlılıklarından izole edilmesi
-- Davranış değişimlerinin kodun geneline yayılmadan yönetilebilmesi
+JSON response
 
----
+Server-Sent Events (SSE) streaming response
 
-## Kullanılan Tasarım Desenleri
+JSON Response Örneği
+curl -X POST http://localhost:3000/api/chats/1/completion \
+ -H "Content-Type: application/json" \
+ -H "Authorization: Bearer test" \
+ -d '{"prompt":"Merhaba"}'
+SSE Streaming Response Örneği
+curl -N -X POST http://localhost:3000/api/chats/1/completion \
+ -H "Content-Type: application/json" \
+ -H "Authorization: Bearer test" \
+ -d '{"prompt":"Merhaba"}'
+Streaming modunda yanıt, parça parça iletilmekte ve bağlantı [DONE] sinyali ile sonlandırılmaktadır.
+Middleware Akışı
 
-### Feature Flag
+Uygulamadaki tüm istekler, route bazlı olarak aşağıdaki middleware zincirinden geçmektedir:
 
-Uygulama davranışlarının runtime’da değiştirilebilmesi için kullanılmıştır.  
-Örneğin:
+Firebase App Check (Mock)
 
-- Pagination limitinin değiştirilmesi
-- Streaming / JSON response seçimi
-- AI Tool davranışının açılıp kapatılması
+JWT Authentication (Mock)
 
-Bu sayede kod değişikliği yapmadan sistem davranışı kontrol edilebilir.
+Client Detection (Web / Mobile / Desktop)
 
----
+Structured Logging
 
-### Strategy Pattern
+Bu yapı sayesinde güvenlik, istemci bilgisi ve loglama uygulama genelinde tutarlı şekilde yönetilmektedir.
 
-Feature flag’lere bağlı olarak değişen davranışlar ayrı stratejiler halinde ele alınmıştır.
+Test Ortamı (Postman)
 
-Örnek:
+Postman ile test edebilmek için aşağıdaki environment değişkenleri kullanılabilir:
 
-- JSON response stratejisi
-- Server-Sent Events (SSE) streaming stratejisi
+baseUrl: http://localhost:3000
 
-Service katmanı yalnızca **hangi stratejinin kullanılacağına karar verir**, stratejinin nasıl çalıştığıyla ilgilenmez.
+token: test
 
----
+appCheck: test
 
-### Repository Pattern
+clientType: web
 
-Veritabanı erişimi repository katmanında soyutlanmıştır.
+📌 Not
 
-- Service katmanı SQL veya ORM detaylarını bilmez
-- Veritabanı değişiklikleri iş kurallarını etkilemez
-- Test edilebilirlik ve okunabilirlik artar
-
----
-
-### Dependency Injection
-
-Service ve repository bağımlılıkları merkezi bir container üzerinden yönetilmektedir.
-
-Bu yaklaşım:
-
-- Bağımlılıkların açıkça görülmesini
-- Alternatif implementasyonların kolayca eklenmesini
-- Kodun daha test edilebilir olmasını sağlar
-
----
-
-### Singleton Pattern
-
-Veritabanı bağlantısı ve ORM yapılandırması tek bir instance üzerinden yönetilmektedir.
-
-- Uygulama genelinde tek bir DB bağlantı havuzu kullanılır
-- Konfigürasyon dağınıklığı önlenir
-- Kaynak yönetimi kontrol altına alınır
-
----
-
-## Veritabanı Tasarımı
-
-Veritabanı şeması Drizzle ORM kullanılarak **schema-first** yaklaşımıyla tanımlanmıştır.
-
-- Tablolar TypeScript tarafında tanımlanır
-- Type-safe sorgular oluşturulur
-- Veri bütünlüğü DB seviyesinde garanti altına alınır
-
-`messages` tablosu, `chats` tablosuna **foreign key** ile bağlıdır.  
-Bu sayede:
-
-- Geçersiz chatId ile mesaj eklenemez
-- Veri tutarlılığı korunur
-
----
-
-## Proje Yapısı
-
-- **Controller katmanı** yalnızca HTTP isteklerini karşılar
-- **Service katmanı** iş kurallarını ve karar mekanizmalarını içerir
-- **Strategy katmanı** değişken davranışları yönetir
-- **Repository katmanı** veritabanı erişimini izole eder
-- **Config ve DB katmanları** altyapı detaylarını merkezi olarak yönetir
-
-Bu yapı sayesinde yeni bir davranış eklemek veya mevcut bir davranışı değiştirmek için sistemin tamamına müdahale etmek gerekmez.
-
-Örnek API Endpoint’leri
-
-•GET /api/chats -> Tüm sohbetleri listeler.
-•GET /api/chats/:chatId/history -> Belirli bir sohbetin mesaj geçmişini getirir.
-•POST /api/chats/:chatId/completion ->Feature flag durumuna göre JSON veya streaming response üretir.
-
-## Kurulum ve Çalıştırma
-
-Öncelikle Docker servislerinin çalıştığından emin olun.
-
-```bash
-docker compose up -d
-npm install
-npx drizzle-kit push
-npm run dev
-
-
-```
-
-### Seed (Demo Verisi)
-
-Projeyi ilk kez çalıştıranlar için örnek veriler sağlanmıştır.
-
-```bash
-psql -h localhost -p 55432 -U gdh -d gdh_case -f seed/seed.sql
-```
+Bu proje, yalnızca teknik gereksinimleri karşılamayı değil; esnek, okunabilir ve genişletilebilir bir mimari yaklaşımın pratikte nasıl uygulanabileceğini göstermeyi amaçlamaktadır.
